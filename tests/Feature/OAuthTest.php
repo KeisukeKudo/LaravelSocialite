@@ -47,10 +47,9 @@ class OAuthTest extends TestCase
     public function Googleの認証画面を表示できる()
     {
         // URLをコール
-        $responce = $this->get(route('socialOAuth', ['provider' => $this->providerName]));
+        $responce = $this->get(route('socialOAuth', ['provider' => $this->providerName]))
+            ->assertStatus(302);
         
-        // 200 -> 302 に変更
-        $responce->assertStatus(302);
         $this->assertThat(
             // リダイレクト先のURLのドメインが正しいかを検証
             $responce->getTargetUrl(),
