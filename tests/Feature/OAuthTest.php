@@ -4,14 +4,29 @@ namespace Tests\Feature;
 
 use Tests\TestCase;
 use App\User;
-use Auth;
-use Socialite;
+use Illuminate\Support\Facades\Auth;
+use Laravel\Socialite\Facades\Socialite;
 use Mockery;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 
 class OAuthTest extends TestCase
 {
     use RefreshDatabase;
+
+    /**
+     * @var Mockery\MockInterface|Laravel\Socialite\Two\User
+     */
+    private $user;
+
+    /**
+     * @var Mockery\MockInterface|Laravel\Socialite\Contracts\Provider
+     */
+    private $provider;
+
+    /**
+     * @var string
+     */
+    private $providerName;
 
     public function setUp(): void
     {
@@ -30,7 +45,7 @@ class OAuthTest extends TestCase
             ->andReturn(uniqid().'@test.com')
             ->shouldReceive('getNickname')
             ->andReturn('Pseudo');
-            
+
         $this->provider = Mockery::mock('Laravel\Socialite\Contracts\Provider');
         $this->provider->shouldReceive('user')->andReturn($this->user);
     }
@@ -47,12 +62,12 @@ class OAuthTest extends TestCase
     public function Googleの認証画面を表示できる()
     {
         // URLをコール
-        $responce = $this->get(route('socialOAuth', ['provider' => $this->providerName]))
+        $response = $this->get(route('socialOAuth', ['provider' => $this->providerName]))
             ->assertStatus(302);
-        
+
         $this->assertThat(
             // リダイレクト先のURLのドメインが正しいかを検証
-            $responce->getTargetUrl(),
+            $response->headers->get('location'),
             $this->stringStartsWith('https://accounts.google.com/')
         );
     }
@@ -69,15 +84,15 @@ class OAuthTest extends TestCase
             ->assertStatus(302)
             ->assertRedirect(route('home'));
 
-        // 登録されているユーザーデータを取得
-        $user = User::where(['email' => $this->user->getEmail()])->firstOrFail();
         // 各データが正しく登録されているかチェック
-        $this->assertEquals($user->provider_id, $this->user->getId());
-        $this->assertEquals($user->provider_name, $this->providerName);
-        $this->assertEquals($user->name, $this->user->getNickName());
-        $this->assertEquals($user->email, $this->user->getEmail());
+        $this->assertDatabaseHas('users', [
+            'provider_id' => $this->user->getId(),
+            'provider_name' => $this->providerName,
+            'name' => $this->user->getNickName(),
+            'email' => $this->user->getEmail()
+        ]);
 
         // 認証チェック
-        $this->assertTrue(Auth::check());
+        $this->assertAuthenticated();
     }
 }
