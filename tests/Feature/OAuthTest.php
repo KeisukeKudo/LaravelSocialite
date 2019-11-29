@@ -3,8 +3,6 @@
 namespace Tests\Feature;
 
 use Tests\TestCase;
-use App\User;
-use Illuminate\Support\Facades\Auth;
 use Laravel\Socialite\Facades\Socialite;
 use Mockery;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -42,7 +40,7 @@ class OAuthTest extends TestCase
             ->shouldReceive('getId')
             ->andReturn(uniqid())
             ->shouldReceive('getEmail')
-            ->andReturn(uniqid().'@test.com')
+            ->andReturn(uniqid() . '@test.com')
             ->shouldReceive('getNickname')
             ->andReturn('Pseudo');
 
@@ -62,14 +60,17 @@ class OAuthTest extends TestCase
     public function Googleの認証画面を表示できる()
     {
         // URLをコール
-        $response = $this->get(route('socialOAuth', ['provider' => $this->providerName]))
-            ->assertStatus(302);
+        $response = $this->get(route('socialOAuth', ['provider' => $this->providerName]));
+        $response->assertStatus(302);
 
-        $this->assertThat(
-            // リダイレクト先のURLのドメインが正しいかを検証
-            $response->headers->get('location'),
-            $this->stringStartsWith('https://accounts.google.com/')
-        );
+        $target = parse_url($response->headers->get('location'));
+        // リダイレクト先ドメインの検証
+        $this->assertEquals('accounts.google.com', $target['host']);
+
+        // パラメータの検証
+        $query = explode('&', $target['query']);
+        $this->assertContains('redirect_uri=' . urlencode(config('services.google.redirect')), $query);
+        $this->assertContains('client_id=' . config('services.google.client_id'), $query);
     }
 
     /**
